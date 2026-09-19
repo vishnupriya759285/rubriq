@@ -22,6 +22,7 @@ async function processSubmission(id: string) {
     await prisma.submission.update({ where: { id }, data: { status: needsReview ? "REVIEW_REQUIRED" : "READY" } });
     await prisma.job.updateMany({ where: { payload: { path: ["submissionId"], equals: id } }, data: { status: "completed" } });
   } catch (error) {
+    console.error("Rubriq grading failed", { submissionId: id, error });
     await prisma.submission.update({ where: { id }, data: { status: "FAILED" } });
     await prisma.job.updateMany({ where: { payload: { path: ["submissionId"], equals: id } }, data: { status: "failed" } });
   }
