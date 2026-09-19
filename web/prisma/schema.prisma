@@ -1,0 +1,156 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+enum Role {
+  TEACHER
+  STUDENT
+}
+
+enum AssessmentStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum SubmissionStatus {
+  UPLOADED
+  PROCESSING
+  READY
+  REVIEW_REQUIRED
+  FAILED
+  RELEASED
+}
+
+enum ReviewDecision {
+  CONFIRMED
+  OVERRIDDEN
+  REJECTED
+}
+
+model User {
+  id String @id @default(cuid())
+  email String @unique
+  name String
+  passwordHash String
+  role Role @default(TEACHER)
+  createdAt DateTime @default(now())
+  classes Class[] @relation("TeacherClasses")
+  memberships Enrollment[]
+  submissions Submission[] @relation("StudentSubmissions")
+}
+model Class {
+  id String @id @default(cuid())
+  teacherId String
+  name String
+  section String?
+  year String?
+  archivedAt DateTime?
+  teacher User @relation("TeacherClasses", fields:[teacherId], references:[id], onDelete:Cascade)
+  enrollments Enrollment[]
+  assessments Assessment[]
+  createdAt DateTime @default(now())
+}
+model Enrollment {
+  id String @id @default(cuid())
+  classId String
+  studentId String
+  studentCode String?
+  class Class @relation(fields:[classId], references:[id], onDelete:Cascade)
+  student User @relation(fields:[studentId], references:[id], onDelete:Cascade)
+  @@unique([classId, studentId])
+}
+model Assessment {
+  id String @id @default(cuid())
+  classId String?
+  teacherId String
+  title String
+  instructions String?
+  status AssessmentStatus @default(DRAFT)
+  rubricVersion Int @default(1)
+  class Class? @relation(fields:[classId], references:[id], onDelete:SetNull)
+  questions Question[]
+  submissions Submission[]
+  createdAt DateTime @default(now())
+}
+model Question {
+  id String @id @default(cuid())
+  assessmentId String
+  position Int
+  prompt String
+  referenceAnswer String?
+  assessment Assessment @relation(fields:[assessmentId], references:[id], onDelete:Cascade)
+  criteria Criterion[]
+}
+model Criterion {
+  id String @id @default(cuid())
+  questionId String
+  position Int
+  title String
+  description String
+  concept String
+  maximum Float
+  question Question @relation(fields:[questionId], references:[id], onDelete:Cascade)
+  evaluations Evaluation[]
+}
+model Submission {
+  id String @id @default(cuid())
+  assessmentId String
+  studentId String?
+  studentName String
+  status SubmissionStatus @default(UPLOADED)
+  releasedAt DateTime?
+  assessment Assessment @relation(fields:[assessmentId], references:[id], onDelete:Cascade)
+  student User? @relation("StudentSubmissions", fields:[studentId], references:[id], onDelete:SetNull)
+  pages SubmissionPage[]
+  evaluations Evaluation[]
+  auditEvents AuditEvent[]
+  createdAt DateTime @default(now())
+}
+model SubmissionPage {
+  id String @id @default(cuid())
+  submissionId String
+  position Int
+  objectKey String
+  mimeType String
+  submission Submission @relation(fields:[submissionId], references:[id], onDelete:Cascade)
+}
+model Evaluation {
+  id String @id @default(cuid())
+  submissionId String
+  criterionId String
+  proposedMark Float
+  effectiveMark Float
+  rationale String
+  confidence Float?
+  evidence String?
+  teacherDecision ReviewDecision?
+  teacherNote String?
+  submission Submission @relation(fields:[submissionId], references:[id], onDelete:Cascade)
+  criterion Criterion @relation(fields:[criterionId], references:[id], onDelete:Cascade)
+  createdAt DateTime @default(now())
+}
+model AuditEvent {
+  id String @id @default(cuid())
+  submissionId String
+  actorId String?
+  action String
+  details Json?
+  createdAt DateTime @default(now())
+  submission Submission @relation(fields:[submissionId], references:[id], onDelete:Cascade)
+}
+model Job {
+  id String @id @default(cuid())
+  type String
+  payload Json
+  status String @default("queued")
+  attempts Int @default(0)
+  runAfter DateTime @default(now())
+  lockedAt DateTime?
+  createdAt DateTime @default(now())
+}

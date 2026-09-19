@@ -1,0 +1,28 @@
+services:
+  web:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://rubriq:${POSTGRES_PASSWORD}@db:5432/rubriq
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: rubriq
+      POSTGRES_USER: rubriq
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - rubriq-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rubriq -d rubriq"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+volumes:
+  rubriq-postgres:
