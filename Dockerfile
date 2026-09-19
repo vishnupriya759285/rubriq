@@ -6,6 +6,9 @@ RUN npm --prefix web ci
 COPY web ./web
 RUN npm --prefix web run db:generate && npm --prefix web run build
 
+FROM build AS migrate
+CMD ["npm", "--prefix", "web", "exec", "prisma", "migrate", "deploy"]
+
 FROM node:20-alpine
 WORKDIR /app
 ENV NODE_ENV=production

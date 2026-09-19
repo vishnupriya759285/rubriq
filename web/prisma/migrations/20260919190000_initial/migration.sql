@@ -1,0 +1,31 @@
+CREATE TYPE "Role" AS ENUM ('TEACHER', 'STUDENT');
+CREATE TYPE "AssessmentStatus" AS ENUM ('DRAFT', 'ACTIVE', 'ARCHIVED');
+CREATE TYPE "SubmissionStatus" AS ENUM ('UPLOADED', 'PROCESSING', 'READY', 'REVIEW_REQUIRED', 'FAILED', 'RELEASED');
+CREATE TYPE "ReviewDecision" AS ENUM ('CONFIRMED', 'OVERRIDDEN', 'REJECTED');
+
+CREATE TABLE "User" ("id" TEXT PRIMARY KEY, "email" TEXT NOT NULL UNIQUE, "name" TEXT NOT NULL, "passwordHash" TEXT NOT NULL, "role" "Role" NOT NULL DEFAULT 'TEACHER', "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE "Session" ("id" TEXT PRIMARY KEY, "tokenHash" TEXT NOT NULL UNIQUE, "userId" TEXT NOT NULL, "expiresAt" TIMESTAMP(3) NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE "Class" ("id" TEXT PRIMARY KEY, "teacherId" TEXT NOT NULL, "name" TEXT NOT NULL, "section" TEXT, "year" TEXT, "archivedAt" TIMESTAMP(3), "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE "Enrollment" ("id" TEXT PRIMARY KEY, "classId" TEXT NOT NULL, "studentId" TEXT NOT NULL, "studentCode" TEXT, UNIQUE("classId", "studentId"));
+CREATE TABLE "Assessment" ("id" TEXT PRIMARY KEY, "classId" TEXT, "teacherId" TEXT NOT NULL, "title" TEXT NOT NULL, "instructions" TEXT, "status" "AssessmentStatus" NOT NULL DEFAULT 'DRAFT', "rubricVersion" INTEGER NOT NULL DEFAULT 1, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE "Question" ("id" TEXT PRIMARY KEY, "assessmentId" TEXT NOT NULL, "position" INTEGER NOT NULL, "prompt" TEXT NOT NULL, "referenceAnswer" TEXT);
+CREATE TABLE "Criterion" ("id" TEXT PRIMARY KEY, "questionId" TEXT NOT NULL, "position" INTEGER NOT NULL, "title" TEXT NOT NULL, "description" TEXT NOT NULL, "concept" TEXT NOT NULL, "maximum" DOUBLE PRECISION NOT NULL);
+CREATE TABLE "Submission" ("id" TEXT PRIMARY KEY, "assessmentId" TEXT NOT NULL, "studentId" TEXT, "studentName" TEXT NOT NULL, "status" "SubmissionStatus" NOT NULL DEFAULT 'UPLOADED', "releasedAt" TIMESTAMP(3), "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE "SubmissionPage" ("id" TEXT PRIMARY KEY, "submissionId" TEXT NOT NULL, "position" INTEGER NOT NULL, "objectKey" TEXT NOT NULL, "mimeType" TEXT NOT NULL);
+CREATE TABLE "Evaluation" ("id" TEXT PRIMARY KEY, "submissionId" TEXT NOT NULL, "criterionId" TEXT NOT NULL, "proposedMark" DOUBLE PRECISION NOT NULL, "effectiveMark" DOUBLE PRECISION NOT NULL, "rationale" TEXT NOT NULL, "confidence" DOUBLE PRECISION, "evidence" TEXT, "teacherDecision" "ReviewDecision", "teacherNote" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE "AuditEvent" ("id" TEXT PRIMARY KEY, "submissionId" TEXT NOT NULL, "actorId" TEXT, "action" TEXT NOT NULL, "details" JSONB, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE "Job" ("id" TEXT PRIMARY KEY, "type" TEXT NOT NULL, "payload" JSONB NOT NULL, "status" TEXT NOT NULL DEFAULT 'queued', "attempts" INTEGER NOT NULL DEFAULT 0, "runAfter" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "lockedAt" TIMESTAMP(3), "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+
+ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE;
+ALTER TABLE "Class" ADD CONSTRAINT "Class_teacherId_fkey" FOREIGN KEY ("teacherId") REFERENCES "User"("id") ON DELETE CASCADE;
+ALTER TABLE "Enrollment" ADD CONSTRAINT "Enrollment_classId_fkey" FOREIGN KEY ("classId") REFERENCES "Class"("id") ON DELETE CASCADE;
+ALTER TABLE "Enrollment" ADD CONSTRAINT "Enrollment_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "User"("id") ON DELETE CASCADE;
+ALTER TABLE "Assessment" ADD CONSTRAINT "Assessment_classId_fkey" FOREIGN KEY ("classId") REFERENCES "Class"("id") ON DELETE SET NULL;
+ALTER TABLE "Question" ADD CONSTRAINT "Question_assessmentId_fkey" FOREIGN KEY ("assessmentId") REFERENCES "Assessment"("id") ON DELETE CASCADE;
+ALTER TABLE "Criterion" ADD CONSTRAINT "Criterion_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "Question"("id") ON DELETE CASCADE;
+ALTER TABLE "Submission" ADD CONSTRAINT "Submission_assessmentId_fkey" FOREIGN KEY ("assessmentId") REFERENCES "Assessment"("id") ON DELETE CASCADE;
+ALTER TABLE "Submission" ADD CONSTRAINT "Submission_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "User"("id") ON DELETE SET NULL;
+ALTER TABLE "SubmissionPage" ADD CONSTRAINT "SubmissionPage_submissionId_fkey" FOREIGN KEY ("submissionId") REFERENCES "Submission"("id") ON DELETE CASCADE;
+ALTER TABLE "Evaluation" ADD CONSTRAINT "Evaluation_submissionId_fkey" FOREIGN KEY ("submissionId") REFERENCES "Submission"("id") ON DELETE CASCADE;
+ALTER TABLE "Evaluation" ADD CONSTRAINT "Evaluation_criterionId_fkey" FOREIGN KEY ("criterionId") REFERENCES "Criterion"("id") ON DELETE CASCADE;
+ALTER TABLE "AuditEvent" ADD CONSTRAINT "AuditEvent_submissionId_fkey" FOREIGN KEY ("submissionId") REFERENCES "Submission"("id") ON DELETE CASCADE;

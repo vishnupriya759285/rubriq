@@ -1,0 +1,3 @@
+import { prisma } from "@/lib/prisma";
+import { requireTeacher } from "@/lib/auth";
+export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) { try { const teacher = await requireTeacher(); const { id } = await params; const submission = await prisma.submission.findFirst({ where: { id, assessment: { teacherId: teacher.id } }, include: { assessment: true, pages: true, evaluations: { include: { criterion: { include: { question: true } } } } } }); if (!submission) return Response.json({ error: "Paper not found." }, { status: 404 }); return Response.json(submission); } catch { return Response.json({ error: "Sign in as a teacher." }, { status: 401 }); } }

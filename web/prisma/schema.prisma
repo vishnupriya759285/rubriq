@@ -43,6 +43,16 @@ model User {
   classes Class[] @relation("TeacherClasses")
   memberships Enrollment[]
   submissions Submission[] @relation("StudentSubmissions")
+  sessions Session[]
+}
+
+model Session {
+  id String @id @default(cuid())
+  tokenHash String @unique
+  userId String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 model Class {
   id String @id @default(cuid())
