@@ -14,5 +14,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /app/web/.next/standalone ./
 COPY --from=build /app/web/.next/static ./.next/static
+COPY --from=build /app/web/node_modules ./node_modules
+COPY --from=build /app/web/prisma ./prisma
 EXPOSE 3000
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node server.js"]
