@@ -28,7 +28,7 @@ export async function startSession(userId: string) {
 
 export async function registerTeacher(input: { name: string; email: string; password: string }) {
   const passwordHash = await bcrypt.hash(input.password, 12);
-  return prisma.user.create({ data: { ...input, passwordHash, role: "TEACHER" } });
+  return prisma.user.create({ data: { name: input.name, email: input.email, passwordHash, role: "TEACHER" } });
 }
 
 export async function verifyPassword(password: string, passwordHash: string) { return bcrypt.compare(password, passwordHash); }
